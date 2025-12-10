@@ -107,19 +107,19 @@ void MainWindow::setTool(Tool newTool)
     switch (m_currentTool)
     {
         case Tool::MAIL:
-            toolLabel->setText("TOOL: MAIL");
+            toolLabel->setText("MAIL");
             break;
         case Tool::CALENDAR:
-            toolLabel->setText("TOOL: CALENDAR");
+            toolLabel->setText("CALENDAR");
             break;
         case Tool::CONTACTS:
-            toolLabel->setText("TOOL: CONTACTS");
+            toolLabel->setText("CONTACTS");
             break;
         case Tool::TASKS:
-            toolLabel->setText("TOOL: TASKS");
+            toolLabel->setText("TASKS");
             break;
         default:
-            toolLabel->setText("TOOL: UNKNOWN");
+            toolLabel->setText("UNKNOWN");
             break;
     }
 }
