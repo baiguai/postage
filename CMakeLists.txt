@@ -13,6 +13,8 @@ add_executable(postage
     src/main.cpp
     src/MainWindow.h
     src/MainWindow.cpp
+    src/AddAccountDialog.h
+    src/AddAccountDialog.cpp
 )
 
 target_link_libraries(postage PRIVATE Qt6::Widgets)

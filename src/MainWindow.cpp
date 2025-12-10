@@ -9,6 +9,7 @@
 #include <QShortcut> // For hotkey
 #include <QApplication> // For QApplication::quit()
 #include <QKeyEvent>
+#include "AddAccountDialog.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -219,6 +220,13 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     if (keyEvent->modifiers() == Qt::ShiftModifier) // 'C'
                     {
                         treeView->collapseAll();
+                    }
+                    return true;
+                case Qt::Key_A:
+                    if (keyEvent->modifiers() == Qt::ShiftModifier && m_currentTool == Tool::MAIL)
+                    {
+                        AddAccountDialog dialog(this);
+                        dialog.exec();
                     }
                     return true;
                 default:
