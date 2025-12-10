@@ -163,7 +163,7 @@ void MainWindow::loadAccounts()
     }
 }
 
-void MainWindow::createAccountConfig(const QString &accountName, const QString &emailAddress)
+void MainWindow::createAccountConfig(const QString &accountName, const QString &emailAddress, const AddAccountDialog &dialog)
 {
     if (accountName.isEmpty()) {
         qWarning() << "Account name cannot be empty. Configuration not saved.";
@@ -181,6 +181,24 @@ void MainWindow::createAccountConfig(const QString &accountName, const QString &
     QJsonObject accountObject;
     accountObject["name"] = accountName;
     accountObject["email"] = emailAddress;
+
+    // SMTP Settings
+    QJsonObject smtpObject;
+    smtpObject["server"] = dialog.smtpServer();
+    smtpObject["port"] = dialog.smtpPort();
+    smtpObject["security"] = dialog.smtpSecurity();
+    smtpObject["username"] = dialog.smtpUsername();
+    smtpObject["password"] = "[encrypted]"; // Placeholder for encryption
+    accountObject["smtp"] = smtpObject;
+
+    // IMAP Settings
+    QJsonObject imapObject;
+    imapObject["server"] = dialog.imapServer();
+    imapObject["port"] = dialog.imapPort();
+    imapObject["security"] = dialog.imapSecurity();
+    imapObject["username"] = dialog.imapUsername();
+    imapObject["password"] = "[encrypted]"; // Placeholder for encryption
+    accountObject["imap"] = imapObject;
 
     QJsonDocument jsonDoc(accountObject);
     QString configFilePath = configPath + "/config.json";
@@ -283,7 +301,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     {
                         AddAccountDialog dialog(this);
                         if (dialog.exec() == QDialog::Accepted) {
-                            createAccountConfig(dialog.accountName(), dialog.emailAddress());
+                            createAccountConfig(dialog.accountName(), dialog.emailAddress(), dialog);
                         }
                     }
                     return true;

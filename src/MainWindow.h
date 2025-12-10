@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QModelIndex>
+#include "AddAccountDialog.h" // Include for AddAccountDialog class
 
 class QSplitter;
 class QTreeView;
@@ -42,7 +43,7 @@ private slots:
 private:
     void setMode(Mode newMode);
     void setTool(Tool newTool);
-    void createAccountConfig(const QString &accountName, const QString &emailAddress);
+    void createAccountConfig(const QString &accountName, const QString &emailAddress, const AddAccountDialog &dialog);
     void loadAccounts();
 
     QSplitter *splitter;
