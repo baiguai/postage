@@ -156,12 +156,20 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
             QModelIndex currentIndex = treeView->currentIndex();
             switch (keyEvent->key())
             {
-                case Qt::Key_J:
-                    treeView->setCurrentIndex(treeView->indexBelow(currentIndex));
+                case Qt::Key_J: {
+                    QModelIndex nextIndex = treeView->indexBelow(currentIndex);
+                    if (nextIndex.isValid()) {
+                        treeView->setCurrentIndex(nextIndex);
+                    }
                     return true; // Event handled
-                case Qt::Key_K:
-                    treeView->setCurrentIndex(treeView->indexAbove(currentIndex));
+                }
+                case Qt::Key_K: {
+                    QModelIndex prevIndex = treeView->indexAbove(currentIndex);
+                    if (prevIndex.isValid()) {
+                        treeView->setCurrentIndex(prevIndex);
+                    }
                     return true; // Event handled
+                }
                 case Qt::Key_L:
                     if (treeView->model()->hasChildren(currentIndex) && !treeView->isExpanded(currentIndex))
                     {
