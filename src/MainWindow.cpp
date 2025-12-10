@@ -222,26 +222,31 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     }
                     return true; // Event handled
                 }
-                case Qt::Key_L:
-                    if (treeView->model()->hasChildren(currentIndex) && !treeView->isExpanded(currentIndex))
-                    {
-                        treeView->expand(currentIndex);
-                    }
-                    else if (treeView->model()->hasChildren(currentIndex))
-                    {
-                        treeView->setCurrentIndex(treeView->model()->index(0, 0, currentIndex));
+                case Qt::Key_L: {
+                    if (treeView->model()->hasChildren(currentIndex)) {
+                        if (treeView->isExpanded(currentIndex)) {
+                            // If expanded, move to first child
+                            QModelIndex firstChild = treeView->model()->index(0, 0, currentIndex);
+                            if (firstChild.isValid()) {
+                                treeView->setCurrentIndex(firstChild);
+                            }
+                        } else {
+                            // If not expanded, expand it
+                            treeView->expand(currentIndex);
+                        }
                     }
                     return true; // Event handled
-                case Qt::Key_H:
-                    if (currentIndex.parent().isValid())
-                    {
+                }
+                case Qt::Key_H: {
+                    if (treeView->isExpanded(currentIndex)) {
+                        // If expanded, collapse it
                         treeView->collapse(currentIndex);
-                    }
-                    else if (currentIndex.parent().isValid())
-                    {
+                    } else if (currentIndex.parent().isValid()) {
+                        // If collapsed, move to parent
                         treeView->setCurrentIndex(currentIndex.parent());
                     }
                     return true; // Event handled
+                }
                 case Qt::Key_G:
                     if (keyEvent->modifiers() == Qt::ShiftModifier) // 'G'
                     {
