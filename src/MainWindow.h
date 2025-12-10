@@ -41,6 +41,7 @@ private slots:
 private:
     void setMode(Mode newMode);
     void setTool(Tool newTool);
+    void createAccountConfig(const QString &accountName, const QString &emailAddress);
 
     QSplitter *splitter;
     QTreeView *treeView;

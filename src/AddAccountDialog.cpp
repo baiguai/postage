@@ -6,6 +6,8 @@
 #include <QVBoxLayout>
 #include <QLabel>
 #include <QDialogButtonBox>
+#include <QLineEdit> // Added for input fields
+#include <QFormLayout> // Added for form layout
 
 AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
 {
@@ -24,9 +26,13 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
 
     // Create a page for each step
     QWidget *emailPage = new QWidget;
-    QVBoxLayout *emailLayout = new QVBoxLayout(emailPage);
-    emailLayout->addWidget(new QLabel("Email settings will go here."));
-    emailPage->setLayout(emailLayout);
+    QFormLayout *emailFormLayout = new QFormLayout(emailPage);
+    accountNameEdit = new QLineEdit(emailPage); // Assign to member variable
+    emailAddressEdit = new QLineEdit(emailPage); // Assign to member variable
+    
+    emailFormLayout->addRow("Account Name:", accountNameEdit);
+    emailFormLayout->addRow("Email Address:", emailAddressEdit);
+    emailPage->setLayout(emailFormLayout);
     pagesWidget->addWidget(emailPage);
 
     QWidget *sendingPage = new QWidget;
@@ -34,7 +40,6 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     sendingLayout->addWidget(new QLabel("Sending (SMTP) server settings will go here."));
     sendingPage->setLayout(sendingLayout);
     pagesWidget->addWidget(sendingPage);
-
     QWidget *receivingPage = new QWidget;
     QVBoxLayout *receivingLayout = new QVBoxLayout(receivingPage);
     receivingLayout->addWidget(new QLabel("Receiving (IMAP/POP3) server settings will go here."));
@@ -62,6 +67,16 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     // Set initial state
     stepsList->setCurrentRow(0);
     resize(500, 300);
+}
+
+QString AddAccountDialog::accountName() const
+{
+    return accountNameEdit->text();
+}
+
+QString AddAccountDialog::emailAddress() const
+{
+    return emailAddressEdit->text();
 }
 
 void AddAccountDialog::onStepChanged(int currentRow)

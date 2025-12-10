@@ -10,6 +10,12 @@
 #include <QApplication> // For QApplication::quit()
 #include <QKeyEvent>
 #include "AddAccountDialog.h"
+#include <QStandardPaths> // For config directory
+#include <QDir> // For directory creation
+#include <QJsonDocument> // For JSON handling
+#include <QJsonObject> // For JSON handling
+#include <QFile> // For file operations
+#include <QDebug> // For logging
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -147,6 +153,38 @@ void MainWindow::onCurrentTreeItemChanged(const QModelIndex &current, const QMod
     }
 }
 
+void MainWindow::createAccountConfig(const QString &accountName, const QString &emailAddress)
+{
+    if (accountName.isEmpty()) {
+        qWarning() << "Account name cannot be empty. Configuration not saved.";
+        return;
+    }
+
+    QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/postage/email/" + accountName;
+    QDir configDir(configPath);
+
+    if (!configDir.mkpath(".")) { // Create the directory structure
+        qWarning() << "Failed to create configuration directory:" << configPath;
+        return;
+    }
+
+    QJsonObject accountObject;
+    accountObject["name"] = accountName;
+    accountObject["email"] = emailAddress;
+
+    QJsonDocument jsonDoc(accountObject);
+    QString configFilePath = configPath + "/config.json";
+    QFile configFile(configFilePath);
+
+    if (configFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        configFile.write(jsonDoc.toJson());
+        configFile.close();
+        qDebug() << "Account configuration saved to:" << configFilePath;
+    } else {
+        qWarning() << "Failed to save configuration to:" << configFilePath << "Error:" << configFile.errorString();
+    }
+}
+
 bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
     if (obj == treeView && event->type() == QEvent::KeyPress)
@@ -182,7 +220,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     }
                     return true; // Event handled
                 case Qt::Key_H:
-                    if (treeView->model()->hasChildren(currentIndex) && treeView->isExpanded(currentIndex))
+                    if (currentIndex.parent().isValid())
                     {
                         treeView->collapse(currentIndex);
                     }
@@ -226,7 +264,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                     if (keyEvent->modifiers() == Qt::ShiftModifier && m_currentTool == Tool::MAIL)
                     {
                         AddAccountDialog dialog(this);
-                        dialog.exec();
+                        if (dialog.exec() == QDialog::Accepted) {
+                            createAccountConfig(dialog.accountName(), dialog.emailAddress());
+                        }
                     }
                     return true;
                 default:
@@ -237,4 +277,3 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
     // Pass the event on to the parent class
     return QMainWindow::eventFilter(obj, event);
 }
-
