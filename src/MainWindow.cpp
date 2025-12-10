@@ -55,12 +55,19 @@ MainWindow::MainWindow(QWidget *parent)
 
     // Status bar
     modeLabel = new QLabel(this);
+    toolLabel = new QLabel(this);
     statusBar()->addWidget(modeLabel);
+    statusBar()->addPermanentWidget(toolLabel);
     setMode(Mode::TREE); // Set initial mode
+
+    // Set initial tool
+    setTool(Tool::MAIL); 
+    connect(treeView->selectionModel(), &QItemSelectionModel::currentChanged, this, &MainWindow::onCurrentTreeItemChanged);
 
     // Set initial focus
     treeView->setFocus();
-
+    treeView->setCurrentIndex(model->index(0, 0, QModelIndex())); // Select 'Mail'
+    
     // Hotkeys
     QShortcut *quitShortcut = new QShortcut(QKeySequence(Qt::CTRL | Qt::Key_Q), this);
     connect(quitShortcut, &QShortcut::activated, qApp, &QApplication::quit);
@@ -91,6 +98,51 @@ void MainWindow::setMode(Mode newMode)
         case Mode::VISUAL:
             modeLabel->setText("VISUAL");
             break;
+    }
+}
+
+void MainWindow::setTool(Tool newTool)
+{
+    m_currentTool = newTool;
+    switch (m_currentTool)
+    {
+        case Tool::MAIL:
+            toolLabel->setText("TOOL: MAIL");
+            break;
+        case Tool::CALENDAR:
+            toolLabel->setText("TOOL: CALENDAR");
+            break;
+        case Tool::CONTACTS:
+            toolLabel->setText("TOOL: CONTACTS");
+            break;
+        case Tool::TASKS:
+            toolLabel->setText("TOOL: TASKS");
+            break;
+        default:
+            toolLabel->setText("TOOL: UNKNOWN");
+            break;
+    }
+}
+
+void MainWindow::onCurrentTreeItemChanged(const QModelIndex &current, const QModelIndex &previous)
+{
+    QModelIndex index = current;
+    while(index.parent().isValid())
+    {
+        index = index.parent();
+    }
+
+    QString toolName = index.data().toString();
+    if (toolName == "Mail") {
+        setTool(Tool::MAIL);
+    } else if (toolName == "Calendar") {
+        setTool(Tool::CALENDAR);
+    } else if (toolName == "Contacts") {
+        setTool(Tool::CONTACTS);
+    } else if (toolName == "Tasks") {
+        setTool(Tool::TASKS);
+    } else {
+        setTool(Tool::UNKNOWN);
     }
 }
 
