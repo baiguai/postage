@@ -149,6 +149,18 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                         treeView->setCurrentIndex(treeView->model()->index(0, 0));
                     }
                     return true; // Event handled
+                case Qt::Key_E:
+                    if (keyEvent->modifiers() == Qt::ShiftModifier) // 'E'
+                    {
+                        treeView->expandAll();
+                    }
+                    return true;
+                case Qt::Key_C:
+                    if (keyEvent->modifiers() == Qt::ShiftModifier) // 'C'
+                    {
+                        treeView->collapseAll();
+                    }
+                    return true;
                 default:
                     break; // Let base class handle it
             }
