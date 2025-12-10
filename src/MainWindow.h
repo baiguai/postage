@@ -2,23 +2,39 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QKeyEvent>
 
 class QSplitter;
 class QTreeView;
 class QTextEdit;
+class QLabel;
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
 public:
+    enum class Mode {
+        TREE,
+        NORMAL,
+        INSERT,
+        VISUAL
+    };
+
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
 private:
+    void setMode(Mode newMode);
+
     QSplitter *splitter;
     QTreeView *treeView;
     QTextEdit *textEdit;
+    QLabel *modeLabel;
+    Mode m_currentMode;
 };
 
 #endif // MAINWINDOW_H
