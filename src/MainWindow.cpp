@@ -30,10 +30,8 @@ MainWindow::MainWindow(QWidget *parent)
     QStandardItemModel *model = new QStandardItemModel(this);
     QStandardItem *rootNode = model->invisibleRootItem();
 
-    QStandardItem *mail = new QStandardItem("Mail");
-    QStandardItem *inbox = new QStandardItem("Inbox");
-    mail->appendRow(inbox);
-    rootNode->appendRow(mail);
+    m_mailRootItem = new QStandardItem("Mail");
+    rootNode->appendRow(m_mailRootItem);
     
     QStandardItem *calendar = new QStandardItem("Calendar");
     rootNode->appendRow(calendar);
@@ -48,6 +46,7 @@ MainWindow::MainWindow(QWidget *parent)
     treeView->expandAll();
     treeView->setSelectionMode(QAbstractItemView::SingleSelection);
     treeView->installEventFilter(this); // Install event filter
+    loadAccounts();
 
     // Right panel: Text edit (placeholder)
     textEdit = new QTextEdit(splitter);
@@ -153,6 +152,17 @@ void MainWindow::onCurrentTreeItemChanged(const QModelIndex &current, const QMod
     }
 }
 
+void MainWindow::loadAccounts()
+{
+    QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/postage/email/";
+    QDir emailDir(configPath);
+    QStringList accountDirs = emailDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+
+    for (const QString &accountName : accountDirs) {
+        m_mailRootItem->appendRow(new QStandardItem(accountName));
+    }
+}
+
 void MainWindow::createAccountConfig(const QString &accountName, const QString &emailAddress)
 {
     if (accountName.isEmpty()) {
@@ -180,6 +190,9 @@ void MainWindow::createAccountConfig(const QString &accountName, const QString &
         configFile.write(jsonDoc.toJson());
         configFile.close();
         qDebug() << "Account configuration saved to:" << configFilePath;
+
+        // Add the new account to the tree view immediately
+        m_mailRootItem->appendRow(new QStandardItem(accountName));
     } else {
         qWarning() << "Failed to save configuration to:" << configFilePath << "Error:" << configFile.errorString();
     }

@@ -8,6 +8,7 @@ class QSplitter;
 class QTreeView;
 class QTextEdit;
 class QLabel;
+class QStandardItem; // Forward declaration
 
 class MainWindow : public QMainWindow
 {
@@ -42,12 +43,14 @@ private:
     void setMode(Mode newMode);
     void setTool(Tool newTool);
     void createAccountConfig(const QString &accountName, const QString &emailAddress);
+    void loadAccounts();
 
     QSplitter *splitter;
     QTreeView *treeView;
     QTextEdit *textEdit;
     QLabel *modeLabel;
     QLabel *toolLabel;
+    QStandardItem *m_mailRootItem;
     Mode m_currentMode;
     Tool m_currentTool;
 };
