@@ -2,7 +2,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <QKeyEvent>
 
 class QSplitter;
 class QTreeView;
@@ -25,7 +24,7 @@ public:
     ~MainWindow();
 
 protected:
-    void keyPressEvent(QKeyEvent *event) override;
+    bool eventFilter(QObject *obj, QEvent *event) override;
 
 private:
     void setMode(Mode newMode);

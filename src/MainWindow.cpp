@@ -8,6 +8,7 @@
 #include <QStatusBar>
 #include <QShortcut> // For hotkey
 #include <QApplication> // For QApplication::quit()
+#include <QKeyEvent>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -39,6 +40,7 @@ MainWindow::MainWindow(QWidget *parent)
     treeView->setModel(model);
     treeView->expandAll();
     treeView->setSelectionMode(QAbstractItemView::SingleSelection);
+    treeView->installEventFilter(this); // Install event filter
 
     // Right panel: Text edit (placeholder)
     textEdit = new QTextEdit(splitter);
@@ -92,57 +94,67 @@ void MainWindow::setMode(Mode newMode)
     }
 }
 
-void MainWindow::keyPressEvent(QKeyEvent *event)
+bool MainWindow::eventFilter(QObject *obj, QEvent *event)
 {
-    if (m_currentMode == Mode::TREE)
+    if (obj == treeView && event->type() == QEvent::KeyPress)
     {
-        QModelIndex currentIndex = treeView->currentIndex();
-        switch (event->key())
+        QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+        if (m_currentMode == Mode::TREE)
         {
-            case Qt::Key_J:
-                treeView->setCurrentIndex(treeView->indexBelow(currentIndex));
-                break;
-            case Qt::Key_K:
-                treeView->setCurrentIndex(treeView->indexAbove(currentIndex));
-                break;
-            case Qt::Key_L:
-                if (treeView->model()->hasChildren(currentIndex) && !treeView->isExpanded(currentIndex))
-                {
-                    treeView->expand(currentIndex);
-                }
-                else
-                {
+            QModelIndex currentIndex = treeView->currentIndex();
+            switch (keyEvent->key())
+            {
+                case Qt::Key_J:
                     treeView->setCurrentIndex(treeView->indexBelow(currentIndex));
-                }
-                break;
-            case Qt::Key_H:
-                if (treeView->model()->hasChildren(currentIndex) && treeView->isExpanded(currentIndex))
-                {
-                    treeView->collapse(currentIndex);
-                }
-                else
-                {
-                    treeView->setCurrentIndex(currentIndex.parent());
-                }
-                break;
-            case Qt::Key_G:
-                if (event->modifiers() & Qt::ShiftModifier) // 'G'
-                {
-                    QAbstractItemModel *model = treeView->model();
-                    QModelIndex lastIndex = model->index(model->rowCount() - 1, 0);
-                    treeView->setCurrentIndex(lastIndex);
-                }
-                else // 'g'
-                {
-                    treeView->setCurrentIndex(treeView->model()->index(0, 0));
-                }
-                break;
-            default:
-                QMainWindow::keyPressEvent(event);
+                    return true; // Event handled
+                case Qt::Key_K:
+                    treeView->setCurrentIndex(treeView->indexAbove(currentIndex));
+                    return true; // Event handled
+                case Qt::Key_L:
+                    if (treeView->model()->hasChildren(currentIndex) && !treeView->isExpanded(currentIndex))
+                    {
+                        treeView->expand(currentIndex);
+                    }
+                    else if (treeView->model()->hasChildren(currentIndex))
+                    {
+                        treeView->setCurrentIndex(treeView->model()->index(0, 0, currentIndex));
+                    }
+                    return true; // Event handled
+                case Qt::Key_H:
+                    if (treeView->model()->hasChildren(currentIndex) && treeView->isExpanded(currentIndex))
+                    {
+                        treeView->collapse(currentIndex);
+                    }
+                    else if (currentIndex.parent().isValid())
+                    {
+                        treeView->setCurrentIndex(currentIndex.parent());
+                    }
+                    return true; // Event handled
+                case Qt::Key_G:
+                    if (keyEvent->modifiers() == Qt::ShiftModifier) // 'G'
+                    {
+                        QAbstractItemModel *model = treeView->model();
+                        QModelIndex lastIndex;
+                        int lastRow = model->rowCount() - 1;
+                        if (lastRow >= 0) {
+                           lastIndex = model->index(lastRow, 0);
+                           while(model->rowCount(lastIndex) > 0 && treeView->isExpanded(lastIndex)) {
+                               lastIndex = model->index(model->rowCount(lastIndex)-1, 0, lastIndex);
+                           }
+                        }
+                        treeView->setCurrentIndex(lastIndex);
+                    }
+                    else if (keyEvent->modifiers() == Qt::NoModifier) // 'g'
+                    {
+                        treeView->setCurrentIndex(treeView->model()->index(0, 0));
+                    }
+                    return true; // Event handled
+                default:
+                    break; // Let base class handle it
+            }
         }
     }
-    else
-    {
-        QMainWindow::keyPressEvent(event);
-    }
+    // Pass the event on to the parent class
+    return QMainWindow::eventFilter(obj, event);
 }
+
