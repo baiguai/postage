@@ -7,7 +7,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 add_executable(postage
     src/main.cpp
@@ -17,6 +17,6 @@ add_executable(postage
     src/AddAccountDialog.cpp
 )
 
-target_link_libraries(postage PRIVATE Qt6::Widgets)
+target_link_libraries(postage PRIVATE Qt6::Widgets Qt6::Network)
 
 target_include_directories(postage PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)

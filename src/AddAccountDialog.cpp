@@ -9,11 +9,26 @@
 #include <QLineEdit> // Added for input fields
 #include <QFormLayout> // Added for form layout
 #include <QComboBox> // Added for security selection
-#include <QUrl> // For domain parsing
 #include <QPushButton> // For the OAuth authenticate button
 #include <QDesktopServices> // For opening URLs in browser
+#include <QTcpServer> // For intercepting OAuth redirect
+#include <QTcpSocket> // For handling TCP connections
+#include <QNetworkAccessManager> // For making network requests
+#include <QNetworkRequest> // For network requests
+#include <QNetworkReply> // For network replies
+#include <QHttpMultiPart> // For POST requests
+#include <QJsonDocument> // For JSON handling
+#include <QJsonObject> // For JSON handling
+#include <QJsonParseError> // For JSON error handling
+#include <QMessageBox> // Added for QMessageBox
+#include <QUrlQuery> // Added for QUrlQuery
+#include <QUrl> // For domain parsing
 
-AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
+AddAccountDialog::AddAccountDialog(QWidget *parent) : 
+    QDialog(parent),
+    replyServer(new QTcpServer(this)),
+    networkManager(new QNetworkAccessManager(this)),
+    m_redirectUri("http://127.0.0.1:8888") // Default redirect URI
 {
     setWindowTitle("Add New Account");
 
@@ -120,6 +135,12 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
 
     // Trigger initial state setup
     onAuthTypeChanged(authTypeCombo->currentIndex());
+
+    // OAuth members initialization
+    replyServer = new QTcpServer(this);
+    networkManager = new QNetworkAccessManager(this);
+    connect(replyServer, &QTcpServer::newConnection, this, &AddAccountDialog::onNewConnection);
+    connect(networkManager, &QNetworkAccessManager::finished, this, &AddAccountDialog::onReplyFinished);
 }
 
 QString AddAccountDialog::accountName() const
@@ -258,7 +279,7 @@ void AddAccountDialog::onAuthTypeChanged(int index)
 void AddAccountDialog::startOAuthFlow()
 {
     // These need to come from your Google API Console project
-    const QString CLIENT_ID = "YOUR_CLIENT_ID_HERE"; // Replace with your actual client ID
+    const QString CLIENT_ID = "367030738302-bfc18cras7fhkjlnjd3q36bl2hgkia9p.apps.googleusercontent.com"; // Replace with your actual client ID
     const QString REDIRECT_URI = "http://127.0.0.1:8888"; // Use a local port
     const QString SCOPES = "https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email";
     
@@ -276,4 +297,129 @@ void AddAccountDialog::startOAuthFlow()
     
     // For now, this just opens the browser.
     // In the next step, we'll need a QTcpServer to intercept the redirect.
+}
+
+QString AddAccountDialog::accessToken() const
+{
+    return m_accessToken;
+}
+
+QString AddAccountDialog::refreshToken() const
+{
+    return m_refreshToken;
+}
+
+void AddAccountDialog::onNewConnection()
+{
+    QTcpSocket *socket = replyServer->nextPendingConnection();
+    if (socket) {
+        connect(socket, &QTcpSocket::readyRead, this, &AddAccountDialog::onReadyRead);
+        qDebug() << "New connection for OAuth redirect.";
+    }
+}
+
+void AddAccountDialog::onReadyRead()
+{
+    QTcpSocket *socket = qobject_cast<QTcpSocket*>(sender());
+    if (!socket) return;
+
+    QByteArray requestData = socket->readAll();
+    QString request(requestData);
+
+    // Look for the GET request line, e.g., "GET /?code=4/..."
+    if (request.startsWith("GET /?")) {
+        QUrlQuery query(request.section(' ', 1, 1).section('?', 1, 1));
+        if (query.hasQueryItem("code")) {
+            m_authCode = query.queryItemValue("code");
+            qDebug() << "Authorization Code received:" << m_authCode;
+
+            // Send a simple response to the browser to close the window
+            socket->write("HTTP/1.1 200 OK\r\nConnection: close\r\nContent-Type: text/html\r\n\r\n"
+                          "<html><body><p>Authentication successful! You can close this window.</p></body></html>");
+            socket->flush();
+            socket->deleteLater(); // Disconnect and delete the socket
+
+            replyServer->close(); // Stop listening
+            qDebug() << "Local HTTP server stopped.";
+
+            exchangeCodeForTokens(); // Proceed to token exchange
+            return;
+        }
+    }
+
+    // If no code, or invalid request, just close the connection
+    socket->write("HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n");
+    socket->flush();
+    socket->deleteLater();
+}
+
+void AddAccountDialog::exchangeCodeForTokens()
+{
+    const QString CLIENT_ID = "YOUR_CLIENT_ID_HERE"; // Replace with your actual client ID
+    const QString CLIENT_SECRET = ""; // Desktop apps often don't use a client secret, or it's embedded.
+                                      // If your project requires one, provide it here.
+    
+    QUrl tokenUrl("https://oauth2.googleapis.com/token");
+    QNetworkRequest request(tokenUrl);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/x-www-form-urlencoded");
+
+    QUrlQuery postData;
+    postData.addQueryItem("client_id", CLIENT_ID);
+    if (!CLIENT_SECRET.isEmpty()) {
+        postData.addQueryItem("client_secret", CLIENT_SECRET);
+    }
+    postData.addQueryItem("code", m_authCode);
+    postData.addQueryItem("redirect_uri", m_redirectUri);
+    postData.addQueryItem("grant_type", "authorization_code");
+
+    qDebug() << "Exchanging code for tokens...";
+    networkManager->post(request, postData.query(QUrl::FullyEncoded).toUtf8());
+}
+
+void AddAccountDialog::onReplyFinished(QNetworkReply *reply)
+{
+    if (reply->error() != QNetworkReply::NoError) {
+        qWarning() << "Network error during token exchange:" << reply->errorString();
+        QMessageBox::critical(this, "OAuth Error", "Failed to exchange authorization code for tokens: " + reply->errorString());
+        reply->deleteLater();
+        return;
+    }
+
+    QByteArray responseData = reply->readAll();
+    QJsonParseError parseError;
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(responseData, &parseError);
+
+    if (parseError.error != QJsonParseError::NoError) {
+        qWarning() << "Failed to parse JSON response from token endpoint:" << parseError.errorString();
+        QMessageBox::critical(this, "OAuth Error", "Failed to parse token response.");
+        reply->deleteLater();
+        return;
+    }
+
+    if (jsonDoc.isObject()) {
+        QJsonObject jsonObject = jsonDoc.object();
+        m_accessToken = jsonObject.value("access_token").toString();
+        m_refreshToken = jsonObject.value("refresh_token").toString();
+
+        if (m_accessToken.isEmpty()) {
+            qWarning() << "Access token not found in response.";
+            QMessageBox::critical(this, "OAuth Error", "Access token missing from response.");
+        } else if (m_refreshToken.isEmpty()) {
+            qWarning() << "Refresh token not found in response. Access type might not be 'offline'.";
+            QMessageBox::warning(this, "OAuth Warning", "Refresh token missing. You might need to re-authenticate when access token expires.");
+        } else {
+            qDebug() << "OAuth tokens received successfully.";
+            qDebug() << "Access Token (first 5 chars):" << m_accessToken.left(5) << "...";
+            qDebug() << "Refresh Token (first 5 chars):" << m_refreshToken.left(5) << "...";
+            QMessageBox::information(this, "OAuth Success", "Authentication successful! Tokens received.");
+            // Only accept the dialog if we actually received tokens
+            // This will trigger createAccountConfig in MainWindow
+            QDialog::accept(); 
+        }
+    } else {
+        qWarning() << "Token response is not a JSON object.";
+        QMessageBox::critical(this, "OAuth Error", "Invalid token response format.");
+    }
+    
+    reply->deleteLater();
 }
