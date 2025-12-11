@@ -16,6 +16,9 @@
 #include <QJsonObject> // For JSON handling
 #include <QFile> // For file operations
 #include <QDebug> // For logging
+#include <QCryptographicHash> // For password hashing
+#include <QByteArray> // For byte array conversions
+#include <QMessageBox> // For confirmation dialog
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -163,6 +166,41 @@ void MainWindow::loadAccounts()
     }
 }
 
+void MainWindow::deleteAccount(const QModelIndex &indexToDelete)
+{
+    if (!indexToDelete.isValid()) {
+        qWarning() << "Cannot delete invalid index.";
+        return;
+    }
+
+    if (indexToDelete.parent() != m_mailRootItem->index()) {
+        qWarning() << "Only direct children of 'Mail' can be deleted as accounts.";
+        return;
+    }
+
+    QString accountName = indexToDelete.data().toString();
+    QString configPath = QStandardPaths::writableLocation(QStandardPaths::ConfigLocation) + "/postage/email/" + accountName;
+    QDir accountDir(configPath);
+
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Confirm Deletion",
+                                  QString("Are you sure you want to delete account '%1'? This action cannot be undone.").arg(accountName),
+                                  QMessageBox::Yes|QMessageBox::No);
+    if (reply == QMessageBox::No) {
+        return;
+    }
+
+    if (accountDir.removeRecursively()) {
+        QStandardItemModel *model = static_cast<QStandardItemModel*>(treeView->model());
+        if (model) {
+            model->removeRow(indexToDelete.row(), indexToDelete.parent());
+            qDebug() << "Account '" << accountName << "' and its configuration deleted successfully.";
+        }
+    } else {
+        qWarning() << "Failed to delete account directory:" << configPath;
+    }
+}
+
 void MainWindow::createAccountConfig(const QString &accountName, const QString &emailAddress, const AddAccountDialog &dialog)
 {
     if (accountName.isEmpty()) {
@@ -188,7 +226,11 @@ void MainWindow::createAccountConfig(const QString &accountName, const QString &
     smtpObject["port"] = dialog.smtpPort();
     smtpObject["security"] = dialog.smtpSecurity();
     smtpObject["username"] = dialog.smtpUsername();
-    smtpObject["password"] = "[encrypted]"; // Placeholder for encryption
+    // Hash the password as a placeholder for proper encryption
+    smtpObject["password"] = QString(QCryptographicHash::hash(dialog.smtpPassword().toUtf8(), QCryptographicHash::Sha256).toHex());
+    // NOTE: This is a placeholder for proper encryption. For a production application,
+    // passwords should be encrypted using a robust cryptographic library and stored securely,
+    // potentially leveraging OS-specific keychain services.
     accountObject["smtp"] = smtpObject;
 
     // IMAP Settings
@@ -197,7 +239,9 @@ void MainWindow::createAccountConfig(const QString &accountName, const QString &
     imapObject["port"] = dialog.imapPort();
     imapObject["security"] = dialog.imapSecurity();
     imapObject["username"] = dialog.imapUsername();
-    imapObject["password"] = "[encrypted]"; // Placeholder for encryption
+    // Hash the password as a placeholder for proper encryption
+    imapObject["password"] = QString(QCryptographicHash::hash(dialog.imapPassword().toUtf8(), QCryptographicHash::Sha256).toHex());
+    // NOTE: Same as above.
     accountObject["imap"] = imapObject;
 
     QJsonDocument jsonDoc(accountObject);
@@ -302,6 +346,17 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *event)
                         AddAccountDialog dialog(this);
                         if (dialog.exec() == QDialog::Accepted) {
                             createAccountConfig(dialog.accountName(), dialog.emailAddress(), dialog);
+                        }
+                    }
+                    return true;
+                case Qt::Key_D: // Handle Shift+D for deletion
+                    if (keyEvent->modifiers() == Qt::ShiftModifier && m_currentTool == Tool::MAIL)
+                    {
+                        QModelIndex selectedIndex = treeView->currentIndex();
+                        if (selectedIndex.isValid() && selectedIndex.parent() == m_mailRootItem->index()) {
+                            deleteAccount(selectedIndex);
+                        } else {
+                            qDebug() << "No valid account selected for deletion, or not a direct child of Mail.";
                         }
                     }
                     return true;

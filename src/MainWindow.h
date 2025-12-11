@@ -45,6 +45,7 @@ private:
     void setTool(Tool newTool);
     void createAccountConfig(const QString &accountName, const QString &emailAddress, const AddAccountDialog &dialog);
     void loadAccounts();
+    void deleteAccount(const QModelIndex &indexToDelete); // New: Delete an account
 
     QSplitter *splitter;
     QTreeView *treeView;

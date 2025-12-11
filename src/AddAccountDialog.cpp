@@ -51,6 +51,9 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     sendingFormLayout->addRow("Port:", smtpPortEdit);
     sendingFormLayout->addRow("Security:", smtpSecurityCombo);
     sendingFormLayout->addRow("Username:", smtpUsernameEdit);
+    smtpPasswordEdit = new QLineEdit(sendingPage);
+    smtpPasswordEdit->setEchoMode(QLineEdit::Password);
+    sendingFormLayout->addRow("Password:", smtpPasswordEdit);
     sendingPage->setLayout(sendingFormLayout);
     pagesWidget->addWidget(sendingPage);
 
@@ -67,6 +70,9 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     receivingFormLayout->addRow("Port:", imapPortEdit);
     receivingFormLayout->addRow("Security:", imapSecurityCombo);
     receivingFormLayout->addRow("Username:", imapUsernameEdit);
+    imapPasswordEdit = new QLineEdit(receivingPage);
+    imapPasswordEdit->setEchoMode(QLineEdit::Password);
+    receivingFormLayout->addRow("Password:", imapPasswordEdit);
     receivingPage->setLayout(receivingFormLayout);
     pagesWidget->addWidget(receivingPage);
 
@@ -131,6 +137,11 @@ QString AddAccountDialog::smtpUsername() const
     return smtpUsernameEdit->text();
 }
 
+QString AddAccountDialog::smtpPassword() const
+{
+    return smtpPasswordEdit->text();
+}
+
 QString AddAccountDialog::imapServer() const
 {
     return imapServerEdit->text();
@@ -151,11 +162,15 @@ QString AddAccountDialog::imapUsername() const
     return imapUsernameEdit->text();
 }
 
+QString AddAccountDialog::imapPassword() const
+{
+    return imapPasswordEdit->text();
+}
+
 void AddAccountDialog::onStepChanged(int currentRow)
 {
     pagesWidget->setCurrentIndex(currentRow);
 }
-
 void AddAccountDialog::discoverSettings()
 {
     QString email = emailAddressEdit->text();

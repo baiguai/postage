@@ -23,11 +23,13 @@ public:
     int smtpPort() const;
     QString smtpSecurity() const;
     QString smtpUsername() const;
+    QString smtpPassword() const; // New: SMTP Password Getter
 
     QString imapServer() const;
     int imapPort() const;
     QString imapSecurity() const;
     QString imapUsername() const;
+    QString imapPassword() const; // New: IMAP Password Getter
 
 
 private slots:
@@ -45,12 +47,14 @@ private:
     QLineEdit *smtpPortEdit;
     QComboBox *smtpSecurityCombo;
     QLineEdit *smtpUsernameEdit;
+    QLineEdit *smtpPasswordEdit; // New: SMTP Password
 
     // Receiving (IMAP/POP3) fields
     QLineEdit *imapServerEdit;
     QLineEdit *imapPortEdit;
     QComboBox *imapSecurityCombo;
     QLineEdit *imapUsernameEdit;
+    QLineEdit *imapPasswordEdit; // New: IMAP Password
 };
 
 #endif // ADDACCOUNTDIALOG_H
