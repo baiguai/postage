@@ -8,6 +8,7 @@ class QListWidget;
 class QStackedWidget;
 class QLineEdit; // Forward declaration for QLineEdit
 class QComboBox; // Forward declaration for QComboBox
+class QPushButton; // Forward declaration for QPushButton
 
 class AddAccountDialog : public QDialog
 {
@@ -35,12 +36,16 @@ public:
 private slots:
     void onStepChanged(int currentRow);
     void discoverSettings(); // New slot for auto-discovery
+    void onAuthTypeChanged(int index); // New slot to handle auth type changes
+    void startOAuthFlow(); // New slot to start OAuth flow
 
 private:
     QListWidget *stepsList;
     QStackedWidget *pagesWidget;
     QLineEdit *accountNameEdit;
     QLineEdit *emailAddressEdit;
+    QComboBox *authTypeCombo; // New: Authentication type selector
+    QPushButton *authButton; // New: Button to start OAuth flow
 
     // Sending (SMTP) fields
     QLineEdit *smtpServerEdit;

@@ -10,6 +10,8 @@
 #include <QFormLayout> // Added for form layout
 #include <QComboBox> // Added for security selection
 #include <QUrl> // For domain parsing
+#include <QPushButton> // For the OAuth authenticate button
+#include <QDesktopServices> // For opening URLs in browser
 
 AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
 {
@@ -31,12 +33,20 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     QFormLayout *emailFormLayout = new QFormLayout(emailPage);
     accountNameEdit = new QLineEdit(emailPage); // Assign to member variable
     emailAddressEdit = new QLineEdit(emailPage); // Assign to member variable
-    
+    authTypeCombo = new QComboBox(emailPage); // Assign to member variable
+    authTypeCombo->addItems({"Password", "OAuth2 (Gmail)"});
+    authButton = new QPushButton("Authenticate with Google", emailPage); // Assign to member variable
+    authButton->setVisible(false); // Hidden by default
+
     emailFormLayout->addRow("Account Name:", accountNameEdit);
     emailFormLayout->addRow("Email Address:", emailAddressEdit);
+    emailFormLayout->addRow("Authentication:", authTypeCombo);
+    emailFormLayout->addRow("", authButton); // Add button without a label
     emailPage->setLayout(emailFormLayout);
     pagesWidget->addWidget(emailPage);
     connect(emailAddressEdit, &QLineEdit::editingFinished, this, &AddAccountDialog::discoverSettings); // Connect for auto-discovery
+    connect(authTypeCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &AddAccountDialog::onAuthTypeChanged);
+    connect(authButton, &QPushButton::clicked, this, &AddAccountDialog::startOAuthFlow);
 
     QWidget *sendingPage = new QWidget;
     QFormLayout *sendingFormLayout = new QFormLayout(sendingPage);
@@ -76,13 +86,15 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     receivingPage->setLayout(receivingFormLayout);
     pagesWidget->addWidget(receivingPage);
 
-    // Set all relevant QLineEdit widgets to read-only initially
+    // Set all relevant QLineEdit widgets to read-only initially (will be enabled/disabled by onAuthTypeChanged)
     smtpServerEdit->setReadOnly(true);
     smtpPortEdit->setReadOnly(true);
     smtpUsernameEdit->setReadOnly(true);
+    smtpPasswordEdit->setReadOnly(true);
     imapServerEdit->setReadOnly(true);
     imapPortEdit->setReadOnly(true);
     imapUsernameEdit->setReadOnly(true);
+    imapPasswordEdit->setReadOnly(true);
 
     splitter->addWidget(stepsList);
     splitter->addWidget(pagesWidget);
@@ -105,6 +117,9 @@ AddAccountDialog::AddAccountDialog(QWidget *parent) : QDialog(parent)
     // Set initial state
     stepsList->setCurrentRow(0);
     resize(700, 400); // Adjusted size to accommodate more fields
+
+    // Trigger initial state setup
+    onAuthTypeChanged(authTypeCombo->currentIndex());
 }
 
 QString AddAccountDialog::accountName() const
@@ -171,6 +186,7 @@ void AddAccountDialog::onStepChanged(int currentRow)
 {
     pagesWidget->setCurrentIndex(currentRow);
 }
+
 void AddAccountDialog::discoverSettings()
 {
     QString email = emailAddressEdit->text();
@@ -182,26 +198,31 @@ void AddAccountDialog::discoverSettings()
 
     // Simple auto-discovery logic (placeholder)
     if (domain == "gmail.com") {
+        authTypeCombo->setCurrentIndex(1); // Select OAuth2
+        // SMTP
         smtpServerEdit->setText("smtp.gmail.com");
         smtpPortEdit->setText("587");
         smtpSecurityCombo->setCurrentText("STARTTLS");
         smtpUsernameEdit->setText(email);
-
+        // IMAP
         imapServerEdit->setText("imap.gmail.com");
         imapPortEdit->setText("993");
         imapSecurityCombo->setCurrentText("SSL/TLS");
         imapUsernameEdit->setText(email);
     } else if (domain == "outlook.com" || domain == "hotmail.com" || domain == "live.com") {
+        authTypeCombo->setCurrentIndex(0); // Select Password
+        // SMTP
         smtpServerEdit->setText("smtp.office365.com");
         smtpPortEdit->setText("587");
         smtpSecurityCombo->setCurrentText("STARTTLS");
         smtpUsernameEdit->setText(email);
-
+        // IMAP
         imapServerEdit->setText("outlook.office365.com");
         imapPortEdit->setText("993");
         imapSecurityCombo->setCurrentText("SSL/TLS");
         imapUsernameEdit->setText(email);
     } else {
+        authTypeCombo->setCurrentIndex(0); // Select Password
         // Generic inference
         smtpServerEdit->setText("smtp." + domain);
         smtpPortEdit->setText("587"); // Common default
@@ -213,4 +234,46 @@ void AddAccountDialog::discoverSettings()
         imapSecurityCombo->setCurrentText("SSL/TLS"); // Common default
         imapUsernameEdit->setText(email);
     }
+}
+
+void AddAccountDialog::onAuthTypeChanged(int index)
+{
+    bool isPasswordAuth = (index == 0); // 0: Password, 1: OAuth2
+
+    smtpServerEdit->setReadOnly(!isPasswordAuth);
+    smtpPortEdit->setReadOnly(!isPasswordAuth);
+    smtpSecurityCombo->setEnabled(isPasswordAuth);
+    smtpUsernameEdit->setReadOnly(!isPasswordAuth);
+    smtpPasswordEdit->setReadOnly(!isPasswordAuth);
+
+    imapServerEdit->setReadOnly(!isPasswordAuth);
+    imapPortEdit->setReadOnly(!isPasswordAuth);
+    imapSecurityCombo->setEnabled(isPasswordAuth);
+    imapUsernameEdit->setReadOnly(!isPasswordAuth);
+    imapPasswordEdit->setReadOnly(!isPasswordAuth);
+
+    authButton->setVisible(!isPasswordAuth); // Show/hide OAuth button
+}
+
+void AddAccountDialog::startOAuthFlow()
+{
+    // These need to come from your Google API Console project
+    const QString CLIENT_ID = "YOUR_CLIENT_ID_HERE"; // Replace with your actual client ID
+    const QString REDIRECT_URI = "http://127.0.0.1:8888"; // Use a local port
+    const QString SCOPES = "https://www.googleapis.com/auth/gmail.compose https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email";
+    
+    QString authUrl = QString("https://accounts.google.com/o/oauth2/v2/auth?"
+                              "client_id=%1&"
+                              "redirect_uri=%2&"
+                              "scope=%3&"
+                              "response_type=code&"
+                              "access_type=offline") // Request a refresh token
+                        .arg(CLIENT_ID)
+                        .arg(REDIRECT_URI)
+                        .arg(SCOPES);
+
+    QDesktopServices::openUrl(QUrl(authUrl));
+    
+    // For now, this just opens the browser.
+    // In the next step, we'll need a QTcpServer to intercept the redirect.
 }
